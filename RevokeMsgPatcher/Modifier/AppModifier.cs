@@ -1,10 +1,8 @@
 ﻿using RevokeMsgPatcher.Model;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RevokeMsgPatcher.Modifier
 {
@@ -40,6 +38,71 @@ namespace RevokeMsgPatcher.Modifier
         public abstract string GetVersion();
 
         /// <summary>
+        /// 操作版本号显示控件的内容和样式
+        /// </summary>
+        /// <param name="label">显示版本的控件</param>
+        public void SetVersionLabel(System.Windows.Forms.Label label)
+        {
+            string version = GetVersion();
+            // 补丁信息中是否都有对应的版本
+            int i = 0, j = 0;
+            foreach (FileHexEditor editor in editors) // 多种文件
+            {
+                // 精确版本匹配
+                bool haven = false;
+                foreach (ModifyInfo modifyInfo in config.FileModifyInfos[editor.FileName]) // 多个版本信息
+                {
+                    if (editor.FileVersion == modifyInfo.Version)
+                    {
+                        haven = true;
+                        break;
+                    }
+                }
+                if (haven)
+                {
+                    i++;
+                }
+
+                // 匹配出对应版本是否有可以使用的特征
+                if (config.FileCommonModifyInfos != null)
+                {
+                    bool inRange = false;
+                    foreach (CommonModifyInfo commonModifyInfo in config.FileCommonModifyInfos[editor.FileName])
+                    {
+                        // editor.FileVersion 在 StartVersion 和 EndVersion 之间
+                        if (IsInVersionRange(editor.FileVersion, commonModifyInfo.StartVersion, commonModifyInfo.EndVersion))
+                        {
+                            inRange = true;
+                            break;
+                        }
+                    }
+                    if (inRange)
+                    {
+                        j++;
+                    }
+                }
+            }
+
+            // 全部都有对应匹配的版本
+            if (i == editors.Count)
+            {
+                label.Text = version + "（已支持）";
+                label.ForeColor = Color.Green;
+            }
+            else if (j == editors.Count)
+            {
+                label.Text = version + "（支持特征码防撤回）";
+                label.ForeColor = Color.LimeGreen;
+            }
+            else
+            {
+                label.Text = version + "（不支持）";
+                label.ForeColor = Color.Red;
+            }
+
+        }
+
+        /// <summary>
         /// 判断APP安装路径内是否都存在要修改的文件
         /// </summary>
         /// <param name="installPath">APP安装路径</param>
@@ -67,6 +130,40 @@ namespace RevokeMsgPatcher.Modifier
             {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// 判断版本是否处于版本范围，特殊版本的可以重载此方法
+        /// </summary>
+        /// <param name="version">当前版本</param>
+        /// <param name="start">起始版本</param>
+        /// <param name="end">结束版本,为空为不限制</param>
+        /// <returns></returns>
+        public bool IsInVersionRange(string version, string start, string end)
+        {
+            try
+            {
+                int v = Convert.ToInt32(version.Replace(".", ""));
+                int s = Convert.ToInt32(start.Replace(".", ""));
+                int e = 0;
+                if (string.IsNullOrEmpty(end))
+                {
+                    e = int.MaxValue;
+                }
+                else
+                {
+                    e = Convert.ToInt32(end.Replace(".", ""));
+                }
+                if (v >= s && v <= e)
+                {
+                    return true;
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("判断版本范围时出错：" + e.Message);
+            }
+            return false;
         }
 
         /// <summary>
@@ -111,6 +208,20 @@ namespace RevokeMsgPatcher.Modifier
                         if (editor.FileVersion == modifyInfo.Version)
                         {
                             matchingVersion = modifyInfo;
+                        }
+                    }
+                }
+
+                // 多个版本范围，匹配出对应版本可以使用的特征
+                if (config.FileCommonModifyInfos != null)
+                {
+                    foreach (CommonModifyInfo commonModifyInfo in config.FileCommonModifyInfos[editor.FileName])
+                    {
+                        // editor.FileVersion 在 StartVersion 和 EndVersion 之间
+                        if (IsInVersionRange(editor.FileVersion, commonModifyInfo.StartVersion, commonModifyInfo.EndVersion))
+                        {
+                            editor.FileCommonModifyInfo = commonModifyInfo;
+                            break;
                         }
                     }
                 }
