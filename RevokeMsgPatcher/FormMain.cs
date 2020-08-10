@@ -1,11 +1,12 @@
-﻿using RevokeMsgPatcher.Model;
+﻿using RevokeMsgPatcher.Forms;
+using RevokeMsgPatcher.Model;
 using RevokeMsgPatcher.Modifier;
 using RevokeMsgPatcher.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
 using System.IO;
-using System.Net;
-using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
@@ -71,13 +72,35 @@ namespace RevokeMsgPatcher
         {
             // 自动获取应用安装路径
             txtPath.Text = modifier.FindInstallPath();
-            btnRestore.Enabled = false;
-            // 显示是否能够备份还原
-            if (!string.IsNullOrEmpty(txtPath.Text))
+            // 显示是否能够备份还原、版本和功能
+            InitEditorsAndUI(txtPath.Text);
+        }
+
+        private void InitEditorsAndUI(string path)
+        {
+            if (!string.IsNullOrEmpty(path))
             {
-                modifier.InitEditors(txtPath.Text);
-                modifier.SetVersionLabel(lblVersion);
+                EnableAllButton(false);
+
+                // 清空界面元素
+                lblVersion.Text = "";
+                panelCategories.Controls.Clear();
+
+                // 重新计算并修改界面元素
+                modifier.InitEditors(path);
+                modifier.SetVersionLabelAndCategoryCategories(lblVersion, panelCategories);
+
+                EnableAllButton(true);
+
+                // 重新显示备份状态
+                btnRestore.Enabled = false;
                 btnRestore.Enabled = modifier.BackupExists();
+
+                List<string> categories = UIController.GetCategoriesFromPanel(panelCategories);
+                if (categories != null && categories.Count == 0)
+                {
+                    btnPatch.Enabled = false;
+                }
             }
         }
 
@@ -97,40 +120,58 @@ namespace RevokeMsgPatcher
             EnableAllButton(false);
             // a.重新初始化编辑器
             modifier.InitEditors(txtPath.Text);
-            // b.计算SHA1，验证文件完整性，寻找对应的补丁信息
+            // b.获取选择的功能 （精准匹配返回null） // TODO 此处逻辑可以优化 不可完全信任UI信息
+            List<string> categories = UIController.GetCategoriesFromPanel(panelCategories);
+            if (categories != null && categories.Count == 0)
+            {
+                MessageBox.Show("请至少选择一项功能");
+                EnableAllButton(true);
+                btnRestore.Enabled = modifier.BackupExists();
+                return;
+            }
+            // c.计算SHA1，验证文件完整性，寻找对应的补丁信息（精确版本、通用特征码两种补丁信息）
             try
             {
-                modifier.ValidateAndFindModifyInfo();
+                modifier.ValidateAndFindModifyInfo(categories);
             }
             catch (BusinessException ex)
             {
                 ga.RequestPageView($"{enName}/{version}/patch/sha1/ex/{ex.ErrorCode}", ex.Message);
                 MessageBox.Show(ex.Message);
+                EnableAllButton(true);
+                btnRestore.Enabled = modifier.BackupExists();
                 return;
             }
             catch (IOException ex)
             {
                 ga.RequestPageView($"{enName}/{version}/patch/sha1/ex/{ex.HResult.ToString("x4")}", ex.Message);
                 MessageBox.Show(ex.Message + " 请以管理员权限启动本程序，并确认当前应用（微信/QQ/TIM）处于关闭状态。");
+                EnableAllButton(true);
+                btnRestore.Enabled = modifier.BackupExists();
                 return;
             }
             catch (Exception ex)
             {
                 ga.RequestPageView($"{enName}/{version}/patch/sha1/ex/{ex.HResult.ToString("x4")}", ex.Message);
                 MessageBox.Show(ex.Message);
-                return;
-            }
-            finally
-            {
                 EnableAllButton(true);
                 btnRestore.Enabled = modifier.BackupExists();
+                return;
             }
-            // c.打补丁
+
+            // d.打补丁
             try
             {
                 modifier.Patch();
-                ga.RequestPageView($"{enName}/{version}/patch/succ", "防撤回成功");
+                ga.RequestPageView($"{enName}/{version}/patch/succ", "补丁安装成功");
                 MessageBox.Show("补丁安装成功！");
+                
+            }
+            catch (BusinessException ex)
+            {
+                Console.WriteLine(ex.Message);
+                ga.RequestPageView($"{enName}/{version}/patch/ex/{ex.ErrorCode}", ex.Message);
+                MessageBox.Show(ex.Message);
             }
             catch (Exception ex)
             {
@@ -140,8 +181,7 @@ namespace RevokeMsgPatcher
             }
             finally
             {
-                EnableAllButton(true);
-                btnRestore.Enabled = modifier.BackupExists();
+                InitEditorsAndUI(txtPath.Text);
             }
 
         }
@@ -150,11 +190,12 @@ namespace RevokeMsgPatcher
         {
             if (modifier.IsAllFilesExist(txtPath.Text))
             {
-                modifier.InitEditors(txtPath.Text);
-                btnRestore.Enabled = modifier.BackupExists();
+                InitEditorsAndUI(txtPath.Text);
             }
             else
             {
+                UIController.AddMsgToPanel(panelCategories, "请输入正确的应用路径");
+                lblVersion.Text = "";
                 btnPatch.Enabled = false;
                 btnRestore.Enabled = false;
             }
@@ -173,14 +214,8 @@ namespace RevokeMsgPatcher
                 else
                 {
                     txtPath.Text = dialog.SelectedPath;
-                    btnRestore.Enabled = false;
-                    // 显示是否能够备份还原
-                    if (!string.IsNullOrEmpty(txtPath.Text))
-                    {
-                        modifier.InitEditors(txtPath.Text);
-                        modifier.SetVersionLabel(lblVersion);
-                        btnRestore.Enabled = modifier.BackupExists();
-                    }
+                    // 显示是否能够备份还原、版本和功能
+                    InitEditorsAndUI(txtPath.Text);
                 }
             }
         }
@@ -190,8 +225,11 @@ namespace RevokeMsgPatcher
             EnableAllButton(false);
             try
             {
-                modifier.Restore();
-                MessageBox.Show("还原成功！");
+                bool succ = modifier.Restore();
+                if (succ)
+                {
+                    MessageBox.Show("还原成功！");
+                }
             }
             catch (Exception ex)
             {
@@ -199,18 +237,20 @@ namespace RevokeMsgPatcher
                 MessageBox.Show(ex.Message);
             }
             EnableAllButton(true);
-            btnRestore.Enabled = modifier.BackupExists();
+            // 重新计算显示是否能够备份还原、版本和功能
+            InitEditorsAndUI(txtPath.Text);
         }
 
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            System.Diagnostics.Process.Start("https://github.com/huiyadanli/RevokeMsgPatcher");
+            Process.Start("https://github.com/huiyadanli/RevokeMsgPatcher");
         }
 
         private async void FormMain_Load(object sender, EventArgs e)
         {
             // 异步获取最新的补丁信息
             string json = await HttpUtil.GetPatchJsonAsync();
+            //string json = null; // local test
             if (string.IsNullOrEmpty(json))
             {
                 lblUpdatePachJson.Text = "[ 获取最新补丁信息失败 ]";
@@ -231,11 +271,13 @@ namespace RevokeMsgPatcher
                     {
                         needUpdate = true;
                         lblUpdatePachJson.Text = $"[ 存在最新版本 {bag.LatestVersion} ]";
+                        lblUpdatePachJson.ForeColor = Color.Red;
                     }
                     else
                     {
                         needUpdate = false;
                         lblUpdatePachJson.Text = "[ 获取成功，点击查看更多信息 ]";
+                        lblUpdatePachJson.ForeColor = Color.RoyalBlue;
                     }
                     InitControls();
                 }
@@ -263,7 +305,7 @@ namespace RevokeMsgPatcher
             DialogResult dr = MessageBox.Show(tips, "当前支持防撤回的版本", MessageBoxButtons.OKCancel);
             if (dr == DialogResult.OK && needUpdate)
             {
-                System.Diagnostics.Process.Start("https://github.com/huiyadanli/RevokeMsgPatcher/releases");
+                Process.Start("https://github.com/huiyadanli/RevokeMsgPatcher/releases");
             }
         }
 
@@ -290,15 +332,9 @@ namespace RevokeMsgPatcher
             }
             txtPath.Text = modifier.FindInstallPath();
             EnableAllButton(true);
-            lblVersion.Text = "";
-            btnRestore.Enabled = false;
-            // 显示是否能够备份还原
-            if (!string.IsNullOrEmpty(txtPath.Text))
-            {
-                modifier.InitEditors(txtPath.Text);
-                modifier.SetVersionLabel(lblVersion);
-                btnRestore.Enabled = modifier.BackupExists();
-            }
+
+            // 重新计算显示是否能够备份还原、版本和功能
+            InitEditorsAndUI(txtPath.Text);
             ga.RequestPageView($"{GetCheckedRadioButtonNameEn()}/{lblVersion.Text}/switch", "切换标签页");
         }
 
@@ -330,6 +366,65 @@ namespace RevokeMsgPatcher
                 if (c is Button)
                 {
                     c.Enabled = state;
+                }
+            }
+        }
+
+        private void 关于ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("本程序仅供学习交流,严禁用于商业用途。\n十六进制编辑器使用的修改数据集收集自网络。\n作者：huiyadanli", "关于本软件");
+        }
+
+        private void 主页ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Process.Start("https://github.com/huiyadanli/RevokeMsgPatcher");
+        }
+
+        private void 支持版本ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Process.Start("https://github.com/huiyadanli/RevokeMsgPatcher/wiki/%E7%89%88%E6%9C%AC%E6%94%AF%E6%8C%81");
+        }
+
+        private void 常见问题ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Process.Start("https://github.com/huiyadanli/RevokeMsgPatcher/wiki#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98");
+        }
+
+        private void 防撤回原理ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Process.Start("https://github.com/huiyadanli/RevokeMsgPatcher/wiki#%E5%8E%9F%E7%90%86");
+        }
+
+        private void 完整文档ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Process.Start("https://github.com/huiyadanli/RevokeMsgPatcher/wiki");
+        }
+
+        private void 特征码防撤回强制ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("作者正在考虑是否要加上这个功能", "强制使用特征码防撤回");
+        }
+
+        private void 手动输入补丁信息ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("作者正在考虑是否要加上这个功能，该功能可能有安全风险，暂时不加入", "手动输入补丁信息");
+        }
+
+        private void 通用微信多开工具ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            string path = Path.Combine(Application.StartupPath, "RevokeMsgPatcher.MultiInstance.exe");
+            if (File.Exists(path))
+            {
+                Process p = new Process();
+                p.StartInfo.FileName = path;
+                p.Start();
+            }
+            else
+            {
+                DialogResult dr = MessageBox.Show($"未在同级目录下找到“微信通用多开工具”，位置：{path}，点击“确定”访问微信通用多开工具的主页，你可以在主页上下载到这个工具。", "未找到程序", MessageBoxButtons.OKCancel);
+                if (dr == DialogResult.OK)
+                {
+                    Process.Start("https://github.com/huiyadanli/RevokeMsgPatcher/tree/master/RevokeMsgPatcher.MultiInstance");
                 }
             }
         }

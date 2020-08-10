@@ -18,14 +18,14 @@
 </p>
 
 # 👀微信/QQ/TIM防撤回补丁
-适用于 Windows 下 PC 版微信/QQ/TIM的防撤回补丁。
+适用于 Windows 下 PC 版微信/QQ/TIM的防撤回补丁。**支持最新版微信/QQ/TIM**，其中微信能够选择安装多开功能。
 
 <img width="180px" src="https://raw.githubusercontent.com/huiyadanli/RevokeMsgPatcher/master/Images/revoke.jpg"/>
 
 下载地址：
-**[⚡️点我下载最新版本](https://github.com/huiyadanli/RevokeMsgPatcher/releases/download/0.6/RevokeMsgPatcher.v0.6.zip)** |
-[☁备用下载-蓝奏云](https://www.lanzous.com/i75gffi) | 
-[☁备用下载-百度云](https://pan.baidu.com/s/1M8rNYrhS85pFjpAASZqKlw) 提取码：coco
+**[⚡️点我下载最新版本](https://github.com/huiyadanli/RevokeMsgPatcher/releases/download/0.9/RevokeMsgPatcher.v0.9.zip)** |
+[☁备用下载-蓝奏云](https://wwa.lanzous.com/iaULseyzpbe) | 
+[☁备用下载-百度云](https://pan.baidu.com/s/1Yty-6d31by_E53SKZyQvTg) 提取码：coco
 
 相关文档：
 **[✔支持哪些版本](https://github.com/huiyadanli/RevokeMsgPatcher/wiki/%E7%89%88%E6%9C%AC%E6%94%AF%E6%8C%81)** | 
@@ -36,6 +36,8 @@
 [📗微信](https://github.com/huiyadanli/RevokeMsgPatcher/wiki/%E5%BE%AE%E4%BF%A1%E9%98%B2%E6%92%A4%E5%9B%9E%E4%B8%8E%E5%A4%9A%E5%BC%80%E6%95%99%E7%A8%8B) |
 [📕QQ](https://github.com/huiyadanli/RevokeMsgPatcher/wiki/QQ%E6%88%96TIM%E9%98%B2%E6%92%A4%E5%9B%9E%E6%95%99%E7%A8%8B) |
 [📘TIM](https://github.com/huiyadanli/RevokeMsgPatcher/wiki/QQ%E6%88%96TIM%E9%98%B2%E6%92%A4%E5%9B%9E%E6%95%99%E7%A8%8B)
+
+附带产物：[一个通用的微信多开工具](https://github.com/huiyadanli/RevokeMsgPatcher/tree/master/RevokeMsgPatcher.MultiInstance)
 
 ## 📷截图
 ![Screenshot](https://raw.githubusercontent.com/huiyadanli/RevokeMsgPatcher/master/Images/screenshot.png)
@@ -55,7 +57,9 @@
 
 5. 点击防撤回。界面可能会出现一段时间的无响应，请耐心等待。**由于修改了微信的 WeChatWin.dll 文件、QQ/TIM的 IM.dll 文件，杀毒软件可能会弹出警告，放行即可。**
 
-## ❤️Thanks
+注意：微信/QQ/TIM更新之后要重新安装补丁！
+
+## ❤Thanks
 
 [wechat_anti_revoke](https://github.com/36huo/wechat_anti_revoke)
 

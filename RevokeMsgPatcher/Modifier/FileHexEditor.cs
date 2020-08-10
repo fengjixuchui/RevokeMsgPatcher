@@ -1,11 +1,7 @@
 ﻿using RevokeMsgPatcher.Model;
 using RevokeMsgPatcher.Utils;
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RevokeMsgPatcher.Modifier
 {
@@ -32,6 +28,14 @@ namespace RevokeMsgPatcher.Modifier
             }
         }
 
+        public string BackupFileVersion
+        {
+            get
+            {
+                return FileUtil.GetFileVersion(FileBakPath);
+            }
+        }
+
         public string sha1;
         public string FileSHA1
         {
@@ -53,9 +57,14 @@ namespace RevokeMsgPatcher.Modifier
         public ModifyInfo FileModifyInfo { get; set; }
 
         /// <summary>
-        /// 通过比对版本范围得到的通用查找替换的修改信息
+        /// 通过比对版本范围得到的通用查找替换的修改信息（特征码替换信息）
         /// </summary>
         public CommonModifyInfo FileCommonModifyInfo { get; set; }
+
+        /// <summary>
+        /// 将要执行的修改
+        /// </summary>
+        public List<Change> TargetChanges { get; set; }
 
         public FileHexEditor(string installPath, TargetInfo target)
         {
@@ -71,18 +80,33 @@ namespace RevokeMsgPatcher.Modifier
         /// </summary>
         public void Backup()
         {
-            File.Copy(FilePath, FileBakPath, true);
+            // 不覆盖同版本的备份文件
+            if (File.Exists(FileBakPath))
+            {
+                if (FileVersion != BackupFileVersion)
+                {
+                    File.Copy(FilePath, FileBakPath, true);
+                }
+            }
+            else
+            {
+                File.Copy(FilePath, FileBakPath, true);
+            }
+
         }
 
         /// <summary>
         /// 打补丁
-        /// 优先使用特定的补丁信息（存在对应SHA1信息）
-        /// 不存在补丁信息，使用通用版本替换方法
         /// </summary>
         /// <returns></returns>
         public bool Patch()
         {
-            FileUtil.EditMultiHex(FilePath, FileModifyInfo.Changes);
+            if (TargetChanges == null)
+            {
+                throw new BusinessException("change_null", "在安装补丁时，变更的内容为空！");
+            }
+
+            FileUtil.EditMultiHex(FilePath, TargetChanges);
             return true;
         }
 

@@ -23,9 +23,9 @@ namespace RevokeMsgPatcher.Utils
         /// </summary>
         private static readonly string[] urls = new string[]
         {
-            "https://coding.net/u/huiyadanli/p/RevokeMsgPatcher/git/raw/master/RevokeMsgPatcher.Assistant/Data/0.6/patch.json",
-            "https://gitee.com/huiyadanli/RevokeMsgPatcher/raw/master/RevokeMsgPatcher.Assistant/Data/0.6/patch.json",
-            "https://raw.githubusercontent.com/huiyadanli/RevokeMsgPatcher/master/RevokeMsgPatcher.Assistant/Data/0.6/patch.json"
+            "https://gitee.com/huiyadanli/RevokeMsgPatcher/raw/master/RevokeMsgPatcher.Assistant/Data/0.9/patch.json",
+            "https://huiyadanli.coding.net/p/RevokeMsgPatcher/d/RevokeMsgPatcher/git/raw/master/RevokeMsgPatcher.Assistant/Data/0.9/patch.json",
+            "https://raw.githubusercontent.com/huiyadanli/RevokeMsgPatcher/master/RevokeMsgPatcher.Assistant/Data/0.9/patch.json"
         };
 
         private static int i = 0;
@@ -40,7 +40,7 @@ namespace RevokeMsgPatcher.Utils
             {
                 Console.WriteLine("第" + (i + 1) + "次请求异常:[" + ex.Message + "]\nURL:" + urls[i]);
                 i++;
-                if (i > urls.Length)
+                if (i >= urls.Length)
                 {
                     i = 0;
                     return null;
